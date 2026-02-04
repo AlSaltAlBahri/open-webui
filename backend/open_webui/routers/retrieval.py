@@ -459,6 +459,9 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
         "TOP_K": request.app.state.config.TOP_K,
         "BYPASS_EMBEDDING_AND_RETRIEVAL": request.app.state.config.BYPASS_EMBEDDING_AND_RETRIEVAL,
         "RAG_FULL_CONTEXT": request.app.state.config.RAG_FULL_CONTEXT,
+        # Knowledge auto-routing settings
+        "ENABLE_KNOWLEDGE_AUTO_ROUTING": request.app.state.config.ENABLE_KNOWLEDGE_AUTO_ROUTING,
+        "KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE": request.app.state.config.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE,
         # Hybrid search settings
         "ENABLE_RAG_HYBRID_SEARCH": request.app.state.config.ENABLE_RAG_HYBRID_SEARCH,
         "ENABLE_RAG_HYBRID_SEARCH_ENRICHED_TEXTS": request.app.state.config.ENABLE_RAG_HYBRID_SEARCH_ENRICHED_TEXTS,
@@ -649,6 +652,10 @@ class ConfigForm(BaseModel):
     BYPASS_EMBEDDING_AND_RETRIEVAL: Optional[bool] = None
     RAG_FULL_CONTEXT: Optional[bool] = None
 
+    # Knowledge auto-routing settings
+    ENABLE_KNOWLEDGE_AUTO_ROUTING: Optional[bool] = None
+    KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE: Optional[str] = None
+
     # Hybrid search settings
     ENABLE_RAG_HYBRID_SEARCH: Optional[bool] = None
     ENABLE_RAG_HYBRID_SEARCH_ENRICHED_TEXTS: Optional[bool] = None
@@ -745,6 +752,18 @@ async def update_rag_config(
         form_data.RAG_FULL_CONTEXT
         if form_data.RAG_FULL_CONTEXT is not None
         else request.app.state.config.RAG_FULL_CONTEXT
+    )
+
+    # Knowledge auto-routing settings
+    request.app.state.config.ENABLE_KNOWLEDGE_AUTO_ROUTING = (
+        form_data.ENABLE_KNOWLEDGE_AUTO_ROUTING
+        if form_data.ENABLE_KNOWLEDGE_AUTO_ROUTING is not None
+        else request.app.state.config.ENABLE_KNOWLEDGE_AUTO_ROUTING
+    )
+    request.app.state.config.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = (
+        form_data.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE
+        if form_data.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE is not None
+        else request.app.state.config.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE
     )
 
     # Hybrid search settings
@@ -1172,6 +1191,9 @@ async def update_rag_config(
         "TOP_K": request.app.state.config.TOP_K,
         "BYPASS_EMBEDDING_AND_RETRIEVAL": request.app.state.config.BYPASS_EMBEDDING_AND_RETRIEVAL,
         "RAG_FULL_CONTEXT": request.app.state.config.RAG_FULL_CONTEXT,
+        # Knowledge auto-routing settings
+        "ENABLE_KNOWLEDGE_AUTO_ROUTING": request.app.state.config.ENABLE_KNOWLEDGE_AUTO_ROUTING,
+        "KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE": request.app.state.config.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE,
         # Hybrid search settings
         "ENABLE_RAG_HYBRID_SEARCH": request.app.state.config.ENABLE_RAG_HYBRID_SEARCH,
         "TOP_K_RERANKER": request.app.state.config.TOP_K_RERANKER,

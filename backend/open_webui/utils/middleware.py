@@ -69,6 +69,7 @@ from open_webui.utils.files import (
 from open_webui.models.users import UserModel
 from open_webui.models.functions import Functions
 from open_webui.models.models import Models
+from open_webui.models.knowledge import Knowledges
 
 from open_webui.retrieval.utils import get_sources_from_items
 
@@ -114,6 +115,7 @@ from open_webui.config import (
     DEFAULT_TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE,
     DEFAULT_CODE_INTERPRETER_PROMPT,
     CODE_INTERPRETER_BLOCKED_MODULES,
+    DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE,
 )
 from open_webui.env import (
     GLOBAL_LOG_LEVEL,
@@ -1483,6 +1485,132 @@ async def process_chat_payload(request, form_data, user, metadata, model):
     # Model "Knowledge" handling
     user_message = get_last_user_message(form_data["messages"])
     model_knowledge = model.get("info", {}).get("meta", {}).get("knowledge", False)
+
+    # Knowledge Base Auto-Routing
+    # If the model doesn't have knowledge attached and auto-routing is enabled,
+    # try to automatically find the most relevant knowledge base for the query
+    if (
+        not model_knowledge
+        and request.app.state.config.ENABLE_KNOWLEDGE_AUTO_ROUTING
+        and metadata.get("params", {}).get("function_calling") != "native"
+    ):
+        try:
+            # Get knowledge bases accessible to the user
+            accessible_kbs = Knowledges.get_knowledge_bases_by_user_id(
+                user.id, permission="read"
+            )
+
+            if accessible_kbs and len(accessible_kbs) > 0:
+                # Emit status: routing to knowledge base
+                await event_emitter(
+                    {
+                        "type": "status",
+                        "data": {
+                            "action": "knowledge_auto_routing",
+                            "query": user_message,
+                            "done": False,
+                        },
+                    }
+                )
+
+                # Build the knowledge base list for the prompt
+                kb_list = "\n".join(
+                    [
+                        f"- id: {kb.id}, name: {kb.name}, description: {kb.description or 'No description'}"
+                        for kb in accessible_kbs
+                    ]
+                )
+
+                # Get the routing prompt template
+                routing_template = (
+                    request.app.state.config.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE
+                    if request.app.state.config.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE
+                    else DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE
+                )
+
+                routing_prompt = routing_template.replace(
+                    "{{QUERY}}", user_message
+                ).replace("{{KNOWLEDGE_BASES}}", kb_list)
+
+                # Use the task model to determine the best knowledge base
+                routing_response = await generate_chat_completion(
+                    request,
+                    {
+                        "model": task_model_id,
+                        "messages": [{"role": "user", "content": routing_prompt}],
+                        "stream": False,
+                    },
+                    user=user,
+                    bypass_filter=True,
+                )
+
+                routing_result = (
+                    routing_response.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                    .strip()
+                    .lower()
+                )
+
+                # Find the selected knowledge base
+                selected_kb = None
+                if routing_result and routing_result != "none":
+                    for kb in accessible_kbs:
+                        if kb.id.lower() == routing_result or kb.id == routing_result:
+                            selected_kb = kb
+                            break
+
+                if selected_kb:
+                    # Add the selected knowledge base to the files
+                    model_knowledge = [
+                        {
+                            "id": selected_kb.id,
+                            "name": selected_kb.name,
+                            "type": "knowledge",
+                        }
+                    ]
+
+                    # Emit status: found relevant knowledge base
+                    await event_emitter(
+                        {
+                            "type": "status",
+                            "data": {
+                                "action": "knowledge_auto_routing",
+                                "query": user_message,
+                                "knowledge_id": selected_kb.id,
+                                "knowledge_name": selected_kb.name,
+                                "done": True,
+                            },
+                        }
+                    )
+                else:
+                    # Emit status: no relevant knowledge base found
+                    await event_emitter(
+                        {
+                            "type": "status",
+                            "data": {
+                                "action": "knowledge_auto_routing",
+                                "query": user_message,
+                                "knowledge_id": None,
+                                "knowledge_name": None,
+                                "done": True,
+                                "hidden": True,
+                            },
+                        }
+                    )
+        except Exception as e:
+            log.error(f"Error during knowledge auto-routing: {e}")
+            # Continue without auto-routing if there's an error
+            await event_emitter(
+                {
+                    "type": "status",
+                    "data": {
+                        "action": "knowledge_auto_routing",
+                        "done": True,
+                        "hidden": True,
+                    },
+                }
+            )
 
     if (
         model_knowledge
