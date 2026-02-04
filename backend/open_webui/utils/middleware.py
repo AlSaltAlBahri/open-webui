@@ -1549,36 +1549,44 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                     .get("message", {})
                     .get("content", "")
                     .strip()
-                    .lower()
                 )
 
-                # Find the selected knowledge base
-                selected_kb = None
-                if routing_result and routing_result != "none":
-                    for kb in accessible_kbs:
-                        if kb.id.lower() == routing_result or kb.id == routing_result:
-                            selected_kb = kb
-                            break
-
-                if selected_kb:
-                    # Add the selected knowledge base to the files
-                    model_knowledge = [
-                        {
-                            "id": selected_kb.id,
-                            "name": selected_kb.name,
-                            "type": "knowledge",
-                        }
+                # Parse the routing result - can be single ID, comma-separated IDs, or "none"
+                selected_kbs = []
+                if routing_result and routing_result.lower() != "none":
+                    # Split by comma and clean up each ID
+                    requested_ids = [
+                        id.strip().lower() for id in routing_result.split(",")
                     ]
 
-                    # Emit status: found relevant knowledge base
+                    # Find matching knowledge bases
+                    for kb in accessible_kbs:
+                        if kb.id.lower() in requested_ids or kb.id in requested_ids:
+                            selected_kbs.append(kb)
+
+                if selected_kbs:
+                    # Add the selected knowledge bases to model_knowledge
+                    model_knowledge = [
+                        {
+                            "id": kb.id,
+                            "name": kb.name,
+                            "type": "knowledge",
+                        }
+                        for kb in selected_kbs
+                    ]
+
+                    # Build names list for status message
+                    kb_names = [kb.name for kb in selected_kbs]
+
+                    # Emit status: found relevant knowledge base(s)
                     await event_emitter(
                         {
                             "type": "status",
                             "data": {
                                 "action": "knowledge_auto_routing",
                                 "query": user_message,
-                                "knowledge_id": selected_kb.id,
-                                "knowledge_name": selected_kb.name,
+                                "knowledge_ids": [kb.id for kb in selected_kbs],
+                                "knowledge_names": kb_names,
                                 "done": True,
                             },
                         }
@@ -1591,8 +1599,8 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                             "data": {
                                 "action": "knowledge_auto_routing",
                                 "query": user_message,
-                                "knowledge_id": None,
-                                "knowledge_name": None,
+                                "knowledge_ids": [],
+                                "knowledge_names": [],
                                 "done": True,
                                 "hidden": True,
                             },
