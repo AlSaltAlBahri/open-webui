@@ -1495,9 +1495,15 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         and metadata.get("params", {}).get("function_calling") != "native"
     ):
         try:
+            log.info(f"[Knowledge Auto-Routing] Starting auto-routing for query: {user_message}")
+
             # Get knowledge bases accessible to the user
             accessible_kbs = Knowledges.get_knowledge_bases_by_user_id(
                 user.id, permission="read"
+            )
+
+            log.info(
+                f"[Knowledge Auto-Routing] Found {len(accessible_kbs)} accessible knowledge bases for user {user.id}"
             )
 
             if accessible_kbs and len(accessible_kbs) > 0:
@@ -1532,6 +1538,9 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                     "{{QUERY}}", user_message
                 ).replace("{{KNOWLEDGE_BASES}}", kb_list)
 
+                log.info(f"[Knowledge Auto-Routing] Using task model: {task_model_id}")
+                log.debug(f"[Knowledge Auto-Routing] Routing prompt:\n{routing_prompt}")
+
                 # Use the task model to determine the best knowledge base
                 routing_response = await generate_chat_completion(
                     request,
@@ -1551,6 +1560,8 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                     .strip()
                 )
 
+                log.info(f"[Knowledge Auto-Routing] LLM response: {routing_result}")
+
                 # Parse the routing result - can be single ID, comma-separated IDs, or "none"
                 selected_kbs = []
                 if routing_result and routing_result.lower() != "none":
@@ -1559,12 +1570,18 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                         id.strip().lower() for id in routing_result.split(",")
                     ]
 
+                    log.info(f"[Knowledge Auto-Routing] Requested KB IDs: {requested_ids}")
+
                     # Find matching knowledge bases
                     for kb in accessible_kbs:
                         if kb.id.lower() in requested_ids or kb.id in requested_ids:
                             selected_kbs.append(kb)
 
                 if selected_kbs:
+                    log.info(
+                        f"[Knowledge Auto-Routing] Selected {len(selected_kbs)} knowledge base(s): {[kb.name for kb in selected_kbs]}"
+                    )
+
                     # Add the selected knowledge bases to model_knowledge
                     model_knowledge = [
                         {
@@ -1592,6 +1609,9 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                         }
                     )
                 else:
+                    log.info(
+                        f"[Knowledge Auto-Routing] No relevant knowledge base found for query"
+                    )
                     # Emit status: no relevant knowledge base found
                     await event_emitter(
                         {
@@ -1607,7 +1627,7 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                         }
                     )
         except Exception as e:
-            log.error(f"Error during knowledge auto-routing: {e}")
+            log.error(f"[Knowledge Auto-Routing] Error during auto-routing: {e}")
             # Continue without auto-routing if there's an error
             await event_emitter(
                 {
