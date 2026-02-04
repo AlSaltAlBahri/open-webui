@@ -2703,6 +2703,30 @@ BYPASS_EMBEDDING_AND_RETRIEVAL = PersistentConfig(
     os.environ.get("BYPASS_EMBEDDING_AND_RETRIEVAL", "False").lower() == "true",
 )
 
+ENABLE_KNOWLEDGE_AUTO_ROUTING = PersistentConfig(
+    "ENABLE_KNOWLEDGE_AUTO_ROUTING",
+    "rag.enable_knowledge_auto_routing",
+    os.environ.get("ENABLE_KNOWLEDGE_AUTO_ROUTING", "False").lower() == "true",
+)
+
+DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = """Given the following user question and list of available knowledge bases, determine which knowledge base would be most relevant to answer the question. If none of the knowledge bases are relevant, respond with "none".
+
+Question: {{QUERY}}
+
+Available Knowledge Bases:
+{{KNOWLEDGE_BASES}}
+
+Respond with ONLY the id of the most relevant knowledge base, or "none" if no knowledge base is relevant. Do not include any other text or explanation."""
+
+KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = PersistentConfig(
+    "KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE",
+    "rag.knowledge_auto_routing_prompt_template",
+    os.environ.get(
+        "KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE",
+        DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE,
+    ),
+)
+
 
 RAG_TOP_K = PersistentConfig(
     "RAG_TOP_K", "rag.top_k", int(os.environ.get("RAG_TOP_K", "3"))
