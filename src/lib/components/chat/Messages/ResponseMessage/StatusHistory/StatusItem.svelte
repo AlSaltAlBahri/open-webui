@@ -57,10 +57,16 @@
 				>
 					{#if (done || status?.done) === false}
 						{$i18n.t('Routing to Knowledge Base')}
-					{:else if status?.knowledge_name}
-						{$i18n.t('Routed to "{{knowledgeName}}"', {
-							knowledgeName: status.knowledge_name
-						})}
+					{:else if status?.knowledge_names && status.knowledge_names.length > 0}
+						{#if status.knowledge_names.length === 1}
+							{$i18n.t('Routed to "{{knowledgeName}}"', {
+								knowledgeName: status.knowledge_names[0]
+							})}
+						{:else}
+							{$i18n.t('Routed to {{count}} knowledge bases', {
+								count: status.knowledge_names.length
+							})}: {status.knowledge_names.join(', ')}
+						{/if}
 					{:else}
 						{$i18n.t('No relevant knowledge base found')}
 					{/if}
