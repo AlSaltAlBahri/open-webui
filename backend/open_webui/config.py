@@ -2709,14 +2709,19 @@ ENABLE_KNOWLEDGE_AUTO_ROUTING = PersistentConfig(
     os.environ.get("ENABLE_KNOWLEDGE_AUTO_ROUTING", "False").lower() == "true",
 )
 
-DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = """Given the following user question and list of available knowledge bases, determine which knowledge base would be most relevant to answer the question. If none of the knowledge bases are relevant, respond with "none".
+DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = """Given the following user question and list of available knowledge bases, determine which knowledge base(s) would be relevant to answer the question. You may select multiple knowledge bases if the question spans multiple topics.
 
 Question: {{QUERY}}
 
 Available Knowledge Bases:
 {{KNOWLEDGE_BASES}}
 
-Respond with ONLY the id of the most relevant knowledge base, or "none" if no knowledge base is relevant. Do not include any other text or explanation."""
+Respond with ONLY the id(s) of the relevant knowledge base(s), separated by commas if multiple. Respond with "none" if no knowledge base is relevant. Do not include any other text or explanation.
+
+Examples:
+- Single relevant KB: kb-123
+- Multiple relevant KBs: kb-123, kb-456
+- No relevant KB: none"""
 
 KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = PersistentConfig(
     "KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE",

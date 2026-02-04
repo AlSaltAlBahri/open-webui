@@ -67,7 +67,8 @@
 	let knowledgeItems = [];
 	let fileItems = [];
 
-	$: items = [...folderItems, ...knowledgeItems, ...fileItems];
+	// Order: Knowledge Bases first, then Folders, then Files
+	$: items = [...knowledgeItems, ...folderItems, ...fileItems];
 
 	$: if (query !== null) {
 		getItems();
@@ -149,10 +150,10 @@
 	{#each filteredItems as item, idx}
 		{#if idx === 0 || item?.type !== items[idx - 1]?.type}
 			<div class="px-2 text-xs text-gray-500 py-1">
-				{#if item?.type === 'folder'}
+				{#if item?.type === 'collection'}
+					{$i18n.t('Knowledge Bases')}
+				{:else if item?.type === 'folder'}
 					{$i18n.t('Folders')}
-				{:else if item?.type === 'collection'}
-					{$i18n.t('Collections')}
 				{:else if item?.type === 'file'}
 					{$i18n.t('Files')}
 				{/if}
