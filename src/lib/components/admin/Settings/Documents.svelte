@@ -1044,6 +1044,44 @@
 							</div>
 						</div>
 
+						<div class="  mb-2.5 flex w-full justify-between">
+							<div class=" self-center text-xs font-medium">
+								<Tooltip
+									content={$i18n.t(
+										'Automatically route queries to the most relevant knowledge base based on the question content.'
+									)}
+									placement="top-start"
+								>
+									{$i18n.t('Knowledge Auto-Routing')}
+								</Tooltip>
+							</div>
+							<div class="flex items-center relative">
+								<Switch bind:state={RAGConfig.ENABLE_KNOWLEDGE_AUTO_ROUTING} />
+							</div>
+						</div>
+
+						{#if RAGConfig.ENABLE_KNOWLEDGE_AUTO_ROUTING}
+							<div class="  mb-2.5 flex flex-col w-full justify-between">
+								<div class=" mb-1 text-xs font-medium">{$i18n.t('Auto-Routing Prompt Template')}</div>
+								<div class="flex w-full items-center relative">
+									<Tooltip
+										content={$i18n.t(
+											'Leave empty to use the default prompt, or enter a custom prompt'
+										)}
+										placement="top-start"
+										className="w-full"
+									>
+										<Textarea
+											bind:value={RAGConfig.KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE}
+											placeholder={$i18n.t(
+												'Leave empty to use the default prompt, or enter a custom prompt'
+											)}
+										/>
+									</Tooltip>
+								</div>
+							</div>
+						{/if}
+
 						{#if !RAGConfig.RAG_FULL_CONTEXT}
 							<div class="  mb-2.5 flex w-full justify-between">
 								<div class=" self-center text-xs font-medium">{$i18n.t('Hybrid Search')}</div>

@@ -48,6 +48,24 @@
 					})}
 				</div>
 			</div>
+		{:else if status?.action === 'knowledge_auto_routing'}
+			<div class="flex flex-col justify-center -space-y-0.5">
+				<div
+					class="{(done || status?.done) === false
+						? 'shimmer'
+						: ''} text-gray-500 dark:text-gray-500 text-base line-clamp-1 text-wrap"
+				>
+					{#if (done || status?.done) === false}
+						{$i18n.t('Routing to Knowledge Base')}
+					{:else if status?.knowledge_name}
+						{$i18n.t('Routed to "{{knowledgeName}}"', {
+							knowledgeName: status.knowledge_name
+						})}
+					{:else}
+						{$i18n.t('No relevant knowledge base found')}
+					{/if}
+				</div>
+			</div>
 		{:else if status?.action === 'web_search_queries_generated' && status?.queries}
 			<div class="flex flex-col justify-center -space-y-0.5">
 				<div
