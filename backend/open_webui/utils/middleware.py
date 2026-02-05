@@ -86,6 +86,7 @@ from open_webui.utils.misc import (
     get_message_list,
     add_or_update_system_message,
     add_or_update_user_message,
+    get_content_from_message,
     get_last_user_message,
     get_last_user_message_item,
     get_last_assistant_message,
@@ -1528,6 +1529,18 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                     }
                 )
 
+                # Build chat history from last 4 messages (excluding the current user message)
+                # This helps the routing LLM understand follow-up questions
+                messages = form_data.get("messages", [])
+                history_messages = messages[:-1] if len(messages) > 1 else []
+                recent_history = history_messages[-4:] if len(history_messages) > 4 else history_messages
+                chat_history = ""
+                if recent_history:
+                    chat_history = "Conversation History:\n" + "\n".join(
+                        f"{msg['role'].upper()}: \"\"\"{get_content_from_message(msg)}\"\"\""
+                        for msg in recent_history
+                    )
+
                 # Build the knowledge base list for the prompt
                 kb_list = "\n".join(
                     [
@@ -1545,7 +1558,11 @@ async def process_chat_payload(request, form_data, user, metadata, model):
 
                 routing_prompt = routing_template.replace(
                     "{{QUERY}}", user_message
-                ).replace("{{KNOWLEDGE_BASES}}", kb_list)
+                ).replace(
+                    "{{KNOWLEDGE_BASES}}", kb_list
+                ).replace(
+                    "{{CHAT_HISTORY}}", chat_history
+                )
 
                 log.info(f"[Knowledge Auto-Routing] Using task model: {task_model_id}")
                 log.debug(f"[Knowledge Auto-Routing] Routing prompt:\n{routing_prompt}")
@@ -1573,17 +1590,22 @@ async def process_chat_payload(request, form_data, user, metadata, model):
 
                 # Parse the routing result - can be single ID, comma-separated IDs, or "none"
                 selected_kbs = []
-                if routing_result and routing_result.lower() != "none":
+                if routing_result and routing_result.lower().strip() != "none":
+                    # Strip common LLM formatting artifacts from the response
+                    # before splitting (e.g., backticks, quotes, brackets)
+                    cleaned_result = routing_result.strip("`\"'[]() \n")
                     # Split by comma and clean up each ID
                     requested_ids = [
-                        id.strip().lower() for id in routing_result.split(",")
+                        re.sub(r"[`\"'\[\]()]+", "", id_str).strip().lower()
+                        for id_str in cleaned_result.split(",")
+                        if id_str.strip()
                     ]
 
                     log.info(f"[Knowledge Auto-Routing] Requested KB IDs: {requested_ids}")
 
                     # Find matching knowledge bases
                     for kb in accessible_kbs:
-                        if kb.id.lower() in requested_ids or kb.id in requested_ids:
+                        if kb.id.lower() in requested_ids:
                             selected_kbs.append(kb)
 
                 if selected_kbs:
