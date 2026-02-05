@@ -1488,9 +1488,18 @@ async def process_chat_payload(request, form_data, user, metadata, model):
 
     # Knowledge Base Auto-Routing
     # If the model doesn't have knowledge attached and auto-routing is enabled,
-    # try to automatically find the most relevant knowledge base for the query
+    # try to automatically find the most relevant knowledge base for the query.
+    # Also skip if the user has manually attached a knowledge base via # menu.
+    user_has_collection = any(
+        f.get("type") == "collection" for f in form_data.get("files", [])
+    )
+    if user_has_collection and request.app.state.config.ENABLE_KNOWLEDGE_AUTO_ROUTING:
+        log.info(
+            "[Knowledge Auto-Routing] Skipping auto-routing: user manually selected a knowledge base"
+        )
     if (
         not model_knowledge
+        and not user_has_collection
         and request.app.state.config.ENABLE_KNOWLEDGE_AUTO_ROUTING
         and metadata.get("params", {}).get("function_calling") != "native"
     ):
@@ -1583,11 +1592,13 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                     )
 
                     # Add the selected knowledge bases to model_knowledge
+                    # Use type="collection" so they are properly handled by
+                    # get_sources_from_items() in the retrieval pipeline
                     model_knowledge = [
                         {
                             "id": kb.id,
                             "name": kb.name,
-                            "type": "knowledge",
+                            "type": "collection",
                         }
                         for kb in selected_kbs
                     ]
