@@ -2709,9 +2709,10 @@ ENABLE_KNOWLEDGE_AUTO_ROUTING = PersistentConfig(
     os.environ.get("ENABLE_KNOWLEDGE_AUTO_ROUTING", "False").lower() == "true",
 )
 
-DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = """Given the following user question and list of available knowledge bases, determine which knowledge base(s) would be relevant to answer the question. You may select multiple knowledge bases if the question spans multiple topics.
+DEFAULT_KNOWLEDGE_AUTO_ROUTING_PROMPT_TEMPLATE = """Given the following conversation and user question, determine which knowledge base(s) would be relevant to answer the question. You may select multiple knowledge bases if the question spans multiple topics. Use the conversation history for context when the latest question is a follow-up.
 
-Question: {{QUERY}}
+{{CHAT_HISTORY}}
+Current Question: {{QUERY}}
 
 Available Knowledge Bases:
 {{KNOWLEDGE_BASES}}
